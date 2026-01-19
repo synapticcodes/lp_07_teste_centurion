@@ -11,9 +11,6 @@ interface LeadFormVariantProps {
 
 type Situation = "aposentado" | "servidor_publico" | "clt" | null;
 
-const TRACK_URL =
-  "https://api-backoffice-production.up.railway.app/track/lL_R02aEAn1mfaKT3D84UXsOyNE7g7teIIAYJobA4tc";
-
 const LEAD_FIELD_IDS = {
   name: "name",
   email: "email",
@@ -85,86 +82,6 @@ export const Lp07LeadFormDialogContent = ({ isOpen, onClose }: LeadFormVariantPr
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const [isRedirecting, setIsRedirecting] = useState(false);
 
-  const sendDirectTracking = (eventKey: string, lead?: { name?: string; email?: string; phone?: string }) => {
-    try {
-      const eventId =
-        (typeof crypto !== "undefined" && "randomUUID" in crypto && typeof crypto.randomUUID === "function")
-          ? crypto.randomUUID()
-          : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-      const payload = JSON.stringify({
-        event: eventKey,
-        event_id: eventId,
-        event_source_url: window.location?.href ?? undefined,
-        lead: lead ?? undefined,
-        extra: { source: "lp07-direct" },
-      });
-      if (navigator?.sendBeacon) {
-        const blob = new Blob([payload], { type: "application/json" });
-        navigator.sendBeacon(TRACK_URL, blob);
-        return;
-      }
-      fetch(TRACK_URL, {
-        method: "POST",
-        mode: "no-cors",
-        body: payload,
-        keepalive: true,
-        headers: {
-          "Content-Type": "application/json",
-        },
-      }).catch(() => {
-        // Silent fail.
-      });
-    } catch {
-      // Silent fail.
-    }
-  };
-
-  const trackEvent = (eventKey: string, opts?: { lead?: { name?: string; email?: string; phone?: string } }) => {
-    try {
-      const tracker = (window as unknown as { wolfgangTrack?: (key: string, options?: unknown) => void })
-        .wolfgangTrack;
-      if (typeof tracker === "function") {
-        tracker(eventKey, { ...(opts ?? {}), beacon: true });
-        return;
-      }
-    } catch {
-      // Silent fail: tracking nunca deve quebrar o fluxo do usuário.
-    }
-
-    try {
-      const eventId =
-        (typeof crypto !== "undefined" && "randomUUID" in crypto && typeof crypto.randomUUID === "function")
-          ? crypto.randomUUID()
-          : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-      const payload = {
-        event: eventKey,
-        event_id: eventId,
-        event_source_url: window.location?.href ?? undefined,
-        lead: opts?.lead ?? undefined,
-        extra: { source: "lp07-fallback" },
-      };
-      const body = JSON.stringify(payload);
-
-      if (navigator?.sendBeacon) {
-        const blob = new Blob([body], { type: "application/json" });
-        if (navigator.sendBeacon(TRACK_URL, blob)) return;
-      }
-
-      fetch(TRACK_URL, {
-        method: "POST",
-        mode: "no-cors",
-        body,
-        keepalive: true,
-        headers: {
-          "Content-Type": "application/json",
-        },
-      }).catch(() => {
-        // Silent fail.
-      });
-    } catch {
-      // Silent fail.
-    }
-  };
 
   const nameValidationError = useMemo(() => {
     const raw = formData.name;
@@ -216,26 +133,9 @@ export const Lp07LeadFormDialogContent = ({ isOpen, onClose }: LeadFormVariantPr
     if (formData.phone.replace(/\D/g, "").length !== 11) return;
     if (nameValidationError || emailValidationError) return;
 
-    const leadPayload = {
-      name: formData.name,
-      email: formData.email,
-      phone: formData.phone,
-    };
-
-    trackEvent("FormSubmit", {
-      lead: leadPayload,
-    });
-
-    sendDirectTracking("FormSubmit", leadPayload);
-
     const whatsappUrl = buildWhatsappUrl(formData.name, situation);
 
     setIsRedirecting(true);
-
-    window.setTimeout(() => {
-      trackEvent("FormSubmit", { lead: leadPayload });
-      sendDirectTracking("FormSubmit", leadPayload);
-    }, 500);
 
     window.setTimeout(() => {
       setStep("qualify");
