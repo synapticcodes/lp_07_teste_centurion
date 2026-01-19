@@ -92,7 +92,8 @@
 
       function readCookie(name){
         try {
-          var match = document.cookie.match(new RegExp('(?:^|; )' + name.replace(/([.$?*|{}()\\[\\]\\\\/+^])/g, '\\\\$1') + '=([^;]*)'));
+          // Escape special chars for a safe cookie name regex.
+          var match = document.cookie.match(new RegExp('(?:^|; )' + name.replace(/([.$?*|{}()\\[\\]\\\\\\/^+])/g, '\\\\$1') + '=([^;]*)'));
           return match ? decodeURIComponent(match[1]) : null;
         } catch (e) {
           dbg('cookie.read_failed', safeErr(e));
